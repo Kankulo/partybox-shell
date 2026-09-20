@@ -33,6 +33,28 @@ Dock). Proyecto independiente, con su propio git, como `PartyBox`,
 
 ## Uso en desarrollo
 
+### Desde `dev.sh` (recomendado)
+
+El script de la carpeta padre arranca todo el stack y, si quieres, también esta
+app apuntada al kiosko:
+
+```bash
+cd ..                                # /Users/admin/Project/partybox
+./dev.sh start --shell               # backend + admin + kiosko + este shell (pantalla completa)
+./dev.sh start --shell --windowed    # ídem, pero el shell empieza como ventana normal
+./dev.sh shell --windowed            # solo el shell (si el kiosko no responde aún, espera en "Conectando…")
+./dev.sh shell http://localhost:5174 # el shell apuntado a otra URL (aquí, el admin)
+./dev.sh status                      # incluye una línea "shell"
+./dev.sh stop                        # para el stack y el shell
+```
+
+Sin `--shell`, `./dev.sh` no cambia: no abre ninguna ventana. Las opciones tras
+`--shell` (o tras `shell`) son las de abajo; lo que no empiece por `--` se toma
+como URL. La primera vez compila Tauri (un par de minutos); después es
+inmediato. Sus logs salen mezclados con los demás con el prefijo `[shell]`.
+
+### Directamente
+
 ```bash
 ./run-dev.sh                        # muestra http://localhost:5173 (la app kiosko de PartyBox)
 ./run-dev.sh http://localhost:5174  # otra URL

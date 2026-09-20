@@ -94,13 +94,17 @@ async fn ping_target(shell: State<'_, Shell>) -> Result<bool, String> {
     .map_err(|e| e.to_string())
 }
 
+fn same_origin(a: &Url, b: &Url) -> bool {
+    a.scheme() == b.scheme() && a.host() == b.host() && a.port_or_known_default() == b.port_or_known_default()
+}
+
 /// The webview may only ever show the local splash page or the configured site
 /// (same scheme, host and port): a link on the page must not take a public
-/// kiosk somewhere else.
-fn allowed(target: &Url, url: &Url) -> bool {
+/// kiosk somewhere else. `dev_server` is where `cargo tauri dev` serves the
+/// splash page from (127.0.0.1:1430) instead of the tauri:// scheme.
+fn allowed(target: &Url, dev_server: Option<&Url>, url: &Url) -> bool {
     let is_local_app = url.scheme() == "tauri" || url.host_str() == Some("tauri.localhost") || url.scheme() == "about";
-    let same_origin = url.scheme() == target.scheme() && url.host() == target.host() && url.port_or_known_default() == target.port_or_known_default();
-    is_local_app || same_origin
+    is_local_app || same_origin(target, url) || dev_server.is_some_and(|d| same_origin(d, url))
 }
 
 // macOS: "simple" fullscreen is instant (no new Space, no animation) and hides
@@ -202,6 +206,12 @@ fn selftest(app: AppHandle) {
     std::thread::spawn(move || {
         sleep(Duration::from_secs(8)); // splash, then the real page
         report(&app, "start");
+        // A page trying to send the kiosk elsewhere must go nowhere.
+        if let Some(w) = app.get_webview_window(WINDOW) {
+            let _ = w.eval("location.href = 'https://example.com/'");
+        }
+        sleep(Duration::from_secs(3));
+        report(&app, "after trying to leave the site");
         toggle_kiosk(&app);
         sleep(Duration::from_secs(2));
         report(&app, "after 1st toggle");
@@ -223,12 +233,13 @@ fn main() {
             app.manage(Shell { url: args.url.clone(), hide_cursor: args.hide_cursor, kiosk: AtomicBool::new(kiosk_at_start) });
 
             let target = args.url.clone();
+            let dev_server = if cfg!(debug_assertions) { app.config().build.dev_url.clone() } else { None };
             let window = WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::App("index.html".into()))
                 .title("PartyBox")
                 .inner_size(1200.0, 800.0)
                 .initialization_script(KIOSK_SCRIPT)
                 .on_navigation(move |url| {
-                    let ok = allowed(&target, url);
+                    let ok = allowed(&target, dev_server.as_ref(), url);
                     if !ok {
                         eprintln!("blocked navigation to {url}");
                     }
@@ -267,23 +278,32 @@ mod tests {
     fn navigation_is_limited_to_the_target_origin_and_the_local_splash() {
         let target = u("http://localhost:5173");
         // the site itself, any path
-        assert!(allowed(&target, &u("http://localhost:5173/")));
-        assert!(allowed(&target, &u("http://localhost:5173/anything?x=1#y")));
+        assert!(allowed(&target, None, &u("http://localhost:5173/")));
+        assert!(allowed(&target, None, &u("http://localhost:5173/anything?x=1#y")));
         // the shell's own splash page (per platform)
-        assert!(allowed(&target, &u("tauri://localhost/index.html")));
-        assert!(allowed(&target, &u("http://tauri.localhost/index.html")));
-        assert!(allowed(&target, &u("about:blank")));
+        assert!(allowed(&target, None, &u("tauri://localhost/index.html")));
+        assert!(allowed(&target, None, &u("http://tauri.localhost/index.html")));
+        assert!(allowed(&target, None, &u("about:blank")));
         // anywhere else
-        assert!(!allowed(&target, &u("https://example.com/")));
-        assert!(!allowed(&target, &u("http://localhost:5174/")), "another port is another origin");
-        assert!(!allowed(&target, &u("https://localhost:5173/")), "another scheme is another origin");
-        assert!(!allowed(&target, &u("http://localhost.evil.com:5173/")));
+        assert!(!allowed(&target, None, &u("https://example.com/")));
+        assert!(!allowed(&target, None, &u("http://localhost:5174/")), "another port is another origin");
+        assert!(!allowed(&target, None, &u("https://localhost:5173/")), "another scheme is another origin");
+        assert!(!allowed(&target, None, &u("http://localhost.evil.com:5173/")));
+    }
+
+    #[test]
+    fn the_dev_server_origin_is_allowed_only_when_given() {
+        let target = u("http://localhost:5173");
+        let dev = u("http://127.0.0.1:1430");
+        assert!(allowed(&target, Some(&dev), &u("http://127.0.0.1:1430/index.html")));
+        assert!(!allowed(&target, None, &u("http://127.0.0.1:1430/index.html")));
+        assert!(!allowed(&target, Some(&dev), &u("http://127.0.0.1:9999/")));
     }
 
     #[test]
     fn default_ports_count_as_the_same_origin() {
         let target = u("https://kiosk.example.com");
-        assert!(allowed(&target, &u("https://kiosk.example.com:443/x")));
-        assert!(!allowed(&target, &u("http://kiosk.example.com/x")));
+        assert!(allowed(&target, None, &u("https://kiosk.example.com:443/x")));
+        assert!(!allowed(&target, None, &u("http://kiosk.example.com/x")));
     }
 }
