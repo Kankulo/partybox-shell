@@ -1,0 +1,6 @@
+# Recent Tauri 2 dependencies need Cargo >= 1.85 (edition 2024). This pins a
+# newer toolchain for this project only; rustup installs it on first use and the
+# system's default toolchain is left alone.
+[toolchain]
+channel = "1.90.0"
+profile = "minimal"

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The local splash page only: it may call the app's own commands. The remote site gets no access to Tauri at all.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

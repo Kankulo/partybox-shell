@@ -1,0 +1,19 @@
+[package]
+name = "partybox-shell"
+version = "0.1.0"
+description = "Kiosk shell for PartyBox: a fullscreen webview pointed at a URL"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde_json = "1"
+
+[profile.release]
+# Small, fast binary: this only ever runs on the kiosk itself.
+lto = true
+codegen-units = 1
+opt-level = "s"
+strip = true

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PartyBox</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.6rem;
+      background: #1a1a2e; color: #fff; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      -webkit-user-select: none; user-select: none; cursor: default;
+    }
+    h1 { margin: 0; font-size: clamp(1.6rem, 5vmin, 3rem); letter-spacing: .02em; }
+    h1 b { color: #ff2d78; }
+    .spinner {
+      width: clamp(2.5rem, 8vmin, 4.5rem); aspect-ratio: 1; border-radius: 50%;
+      border: .28rem solid rgba(255, 255, 255, .15); border-top-color: #ff2d78; animation: spin 1s linear infinite;
+    }
+    p { margin: 0; opacity: .6; font-size: clamp(.8rem, 2vmin, 1rem); text-align: center; min-height: 1.4em; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <h1>Party<b>Box</b></h1>
+  <div class="spinner"></div>
+  <p id="status">Conectando…</p>
+
+  <script>
+    // Local "connecting" page. The shell starts here, then goes to the real
+    // site as soon as its server answers — and keeps trying if it doesn't,
+    // so the kiosk can boot before the server does and nobody has to touch it.
+    const status = document.getElementById('status')
+    const RETRY_MS = 3000
+    const invoke = window.__TAURI_INTERNALS__.invoke
+
+    async function main() {
+      const target = await invoke('target_url')
+      for (let attempt = 1; ; attempt++) {
+        let up = false
+        try { up = await invoke('ping_target') } catch { /* treat as down */ }
+        if (up) {
+          status.textContent = 'Abriendo…'
+          location.replace(target)
+          return
+        }
+        status.textContent = attempt === 1 ? 'Conectando…' : `Esperando al servidor… (${target}, intento ${attempt})`
+        await new Promise((r) => setTimeout(r, RETRY_MS))
+      }
+    }
+    main()
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- getUserMedia() in the webview: without this macOS never asks for, and never grants, the camera. -->
+  <key>NSCameraUsageDescription</key>
+  <string>PartyBox necesita la cámara para hacer las fotos.</string>
+  <!-- The kiosk page may be served over plain http (localhost or the LAN). -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoadsInWebContent</key>
+    <true/>
+  </dict>
+</dict>
+</plist>
