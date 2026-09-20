@@ -94,7 +94,7 @@ en producción. Solo existen en compilaciones de desarrollo.
 
 Para un panel táctil horizontal montado en vertical, deja el sistema en horizontal y
 pide a la app que gire su interfaz con un parámetro en la URL:
-`./dev.sh shell "http://localhost:5173/?rotate=270"` (o `--url` con lo mismo).
+`./dev.sh shell "http://localhost:5173/?rotate=90"` (o `--url` con lo mismo).
 El shell solo exige que la URL sea del mismo origen, así que el parámetro no le afecta.
 Detalles y diagnóstico del táctil en `../docs/guia-de-uso.md`.
 
