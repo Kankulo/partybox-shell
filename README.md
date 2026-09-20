@@ -41,9 +41,10 @@ app apuntada al kiosko:
 
 ```bash
 cd ..                                # /Users/admin/Project/partybox
-./dev.sh start --shell               # backend + admin + kiosko + este shell (pantalla completa)
-./dev.sh start --shell --windowed    # ídem, pero el shell empieza como ventana normal
+./dev.sh start --shell               # backend + admin + kiosko + este shell
+./dev.sh start --shell --kiosk       # ídem, forzando el modo kiosko (pantalla completa)
 ./dev.sh shell --windowed            # solo el shell (si el kiosko no responde aún, espera en "Conectando…")
+./dev.sh shell --rotate=90 --cursor=hide   # panel vertical y sin puntero, sin tocar la URL
 ./dev.sh shell http://localhost:5174 # el shell apuntado a otra URL (aquí, el admin)
 ./dev.sh status                      # incluye una línea "shell"
 ./dev.sh stop                        # para el stack y el shell
@@ -59,7 +60,8 @@ inmediato. Sus logs salen mezclados con los demás con el prefijo `[shell]`.
 ```bash
 ./run-dev.sh                        # muestra http://localhost:5173 (la app kiosko de PartyBox)
 ./run-dev.sh http://localhost:5174  # otra URL
-./run-dev.sh --windowed             # empieza como ventana normal en vez de en modo kiosko
+./run-dev.sh --windowed             # empieza como ventana normal
+./run-dev.sh --rotate=90 --cursor=hide
 ```
 
 (Equivale a `cd src-tauri && cargo tauri dev -- -- --url <url>`.) También vale
@@ -77,8 +79,7 @@ la variable de entorno `PARTYBOX_URL`.
 
 Están también en el menú **Kiosco** (visible cuando no estás en modo kiosko).
 Los atajos siguen funcionando con el modo kiosko activo aunque el menú esté
-oculto. Por defecto **empieza en modo kiosko**; con `--windowed` empieza como
-ventana.
+oculto. Ver "Dónde y cómo arranca" para saber en qué modo empieza.
 
 Las herramientas de desarrollo tienen su propio atajo porque el menú contextual
 de la página (clic derecho → "Inspeccionar") está desactivado a propósito, como
@@ -93,19 +94,49 @@ en producción. Solo existen en compilaciones de desarrollo.
 ### Panel vertical (interfaz girada)
 
 Para un panel táctil horizontal montado en vertical, deja el sistema en horizontal y
-pide a la app que gire su interfaz con un parámetro en la URL:
-`./dev.sh shell "http://localhost:5173/?rotate=90"` (o `--url` con lo mismo).
-El shell solo exige que la URL sea del mismo origen, así que el parámetro no le afecta.
-Detalles y diagnóstico del táctil en `../docs/guia-de-uso.md`.
+pide a la app que gire su interfaz: `./dev.sh shell --rotate=90` (el shell lo añade a la
+URL como `?rotate=90`; también vale escribirlo tú en la URL). Detalles y diagnóstico del
+táctil en `../docs/guia-de-uso.md`.
 
 ## Opciones de la línea de comandos
 
 | Opción | Efecto |
 |---|---|
 | `--url <url>` | Página a mostrar. También `PARTYBOX_URL`. Por defecto `http://localhost:5173`. Si falta el esquema se asume `http://`. |
-| `--windowed` | Arranca como ventana normal (por defecto arranca en modo kiosko). |
-| `--hide-cursor` | Oculta el puntero del ratón en modo kiosko (pantallas táctiles). |
+| `--rotate=<grados>` | Gira toda la interfaz: `0`, `90`, `180` o `270` (sentido horario). Para un panel montado girado; ver "Panel vertical". Se añade a la URL como `?rotate=`. |
+| `--cursor=<hide\|show>` | Oculta o muestra el puntero del ratón. Se añade a la URL como `?cursor=` (lo aplica la página) y, con `hide`, el shell también lo oculta a nivel nativo en modo kiosko. Sin la opción decide la página (oculto en producción, visible en desarrollo). |
+| `--hide-cursor` | Igual que `--cursor=hide`. |
+| `--kiosk` | Arranca en modo kiosko (pantalla completa, sin barras). |
+| `--windowed` | Arranca como ventana normal. |
+| `--reset-window` | Olvida la pantalla y posición recordadas (ver abajo). |
+| `-h`, `--help` | Muestra esta lista. |
 
+Todas las opciones con valor se pueden escribir `--rotate=90` o `--rotate 90`.
+`--rotate` y `--cursor` **sustituyen** al mismo parámetro si la URL ya lo traía
+(`--url "http://host/?a=1&rotate=180" --rotate=90` → `?a=1&rotate=90`, el resto se
+conserva). Un valor no válido (`--rotate=45`) hace que el shell no arranque y lo diga.
+
+### Dónde y cómo arranca
+
+El shell **recuerda dónde estaba**: cada vez que mueves o redimensionas la ventana, y
+cada vez que entras o sales del modo kiosko, guarda posición, tamaño y modo en
+`window.json` dentro de su carpeta de configuración (macOS:
+`~/Library/Application Support/com.partybox.shell/`; Linux: `~/.config/com.partybox.shell/`).
+Al arrancar, sin `--kiosk` ni `--windowed`:
+
+| Situación | Resultado |
+|---|---|
+| Hay algo recordado y esa pantalla sigue conectada | Abre **en esa misma pantalla**, en el mismo modo (si se cerró en kiosko, vuelve a kiosko sobre ella). |
+| Primera vez, o la pantalla recordada ya no está (desenchufada, otra resolución), o el fichero está dañado | **Ventana normal**, nunca kiosko: llévala a la pantalla que toque y entra en kiosko (⌘⇧K / Ctrl+Shift+K en desarrollo; en producción, no hay atajo: arranca una vez con `--kiosk` estando la ventana donde quieras, y se recordará). |
+| `--kiosk` / `--windowed` | Manda lo que pidas, en la pantalla recordada si la hay. |
+
+Pasos para una instalación nueva con dos pantallas: arrancar sin opciones → aparece
+ventana normal → arrastrarla al panel → entrar en kiosko (o cerrar y volver a abrir con
+`--kiosk`). Desde entonces, arranca sola en el panel y en kiosko. Para empezar de cero:
+`--reset-window` (o borrar `window.json`). El tamaño y la posición guardados son los del
+modo *ventana*: al salir de kiosko vuelve a donde estaba. (En macOS, al salir del modo
+kiosko la ventana puede quedar unos píxeles más arriba: es de macOS, no se acumula al
+reabrir.)
 ## Compilar para producción
 
 ```bash
@@ -115,12 +146,15 @@ cd src-tauri && cargo tauri build
 Genera la app (`.app`/`.dmg` en macOS, `.deb`/`.AppImage`/`.rpm` en Linux…) en
 `src-tauri/target/release/bundle/`. En Linux se puede ejecutar el binario
 directamente (`src-tauri/target/release/partybox-shell`) o instalar el `.deb`. La versión de producción **no tiene menú ni
-atajos**: arranca en kiosko y no hay salida (cerrar el proceso desde fuera, o
-`--windowed` para pruebas). Ejemplo de arranque en el mini-PC:
+atajos**: en kiosko no hay salida con el ratón (cerrar el proceso desde fuera, o
+volver a arrancar con `--windowed`). Ejemplo de arranque en el mini-PC:
 
 ```bash
-partybox-shell --url http://localhost:5173 --hide-cursor
+partybox-shell --url http://localhost:5173 --rotate=90 --cursor=hide --kiosk
 ```
+
+Basta con `--kiosk` la primera vez (con la ventana ya en el panel): las siguientes
+veces se puede arrancar sin él, porque recuerda pantalla y modo.
 
 ## Comprobar el modo kiosko sin teclado (autotest)
 
