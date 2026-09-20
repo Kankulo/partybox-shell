@@ -28,7 +28,8 @@ Dock). Proyecto independiente, con su propio git, como `PartyBox`,
   que `rust-toolchain.toml` fija **Rust 1.90 solo para este proyecto**; `rustup`
   lo instala la primera vez y el toolchain por defecto del sistema no se toca.
 - macOS: Xcode Command Line Tools. Linux: `webkit2gtk-4.1` y compañía
-  ([requisitos de Tauri](https://v2.tauri.app/start/prerequisites/)).
+  ([requisitos de Tauri](https://v2.tauri.app/start/prerequisites/)), p. ej. en
+  Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`.
 - No hay Node ni frontend que compilar: la única página propia es `ui/index.html`.
 
 ## Uso en desarrollo
@@ -66,17 +67,28 @@ la variable de entorno `PARTYBOX_URL`.
 
 ### Atajos (solo en desarrollo)
 
-| Atajo | Acción |
-|---|---|
-| **⌘ ⇧ K** (Ctrl+Shift+K en Windows/Linux) | **Entrar / salir del modo kiosko** |
-| ⌘ R | Recargar la página |
-| ⌘ ⇧ H | Volver a la URL inicial |
-| ⌘ Q | Salir de la app |
+| Acción | macOS | Linux / Windows |
+|---|---|---|
+| **Entrar / salir del modo kiosko** | **⌘ ⇧ K** | **Ctrl + Shift + K** |
+| Recargar la página | ⌘ R | Ctrl + R |
+| Volver a la URL inicial | ⌘ ⇧ H | Ctrl + Shift + H |
+| **Herramientas de desarrollo** (inspector, consola, red) | ⌘ ⌥ I | **F12** |
+| Salir de la app | ⌘ Q | Ctrl + Q |
 
 Están también en el menú **Kiosco** (visible cuando no estás en modo kiosko).
 Los atajos siguen funcionando con el modo kiosko activo aunque el menú esté
 oculto. Por defecto **empieza en modo kiosko**; con `--windowed` empieza como
 ventana.
+
+Las herramientas de desarrollo tienen su propio atajo porque el menú contextual
+de la página (clic derecho → "Inspeccionar") está desactivado a propósito, como
+en producción. Solo existen en compilaciones de desarrollo.
+
+> **Linux**: los atajos son aceleradores del menú nativo (GTK). Que sigan
+> respondiendo con la barra de menús oculta por el modo kiosko es lo esperado
+> por cómo funciona GTK, pero **no está comprobado en un Linux real**. Si en tu
+> equipo no responden, sal con `Ctrl+C` en el terminal (o `./dev.sh stop`) y
+> arranca con `--windowed`.
 
 ## Opciones de la línea de comandos
 
@@ -92,8 +104,9 @@ ventana.
 cd src-tauri && cargo tauri build
 ```
 
-Genera la app (`.app`/`.dmg` en macOS, `.deb`/`.AppImage` en Linux…) en
-`src-tauri/target/release/bundle/`. La versión de producción **no tiene menú ni
+Genera la app (`.app`/`.dmg` en macOS, `.deb`/`.AppImage`/`.rpm` en Linux…) en
+`src-tauri/target/release/bundle/`. En Linux se puede ejecutar el binario
+directamente (`src-tauri/target/release/partybox-shell`) o instalar el `.deb`. La versión de producción **no tiene menú ni
 atajos**: arranca en kiosko y no hay salida (cerrar el proceso desde fuera, o
 `--windowed` para pruebas). Ejemplo de arranque en el mini-PC:
 
@@ -123,7 +136,12 @@ pregunta ni concede la cámara. La primera vez saldrá el aviso de permiso del
 sistema. Además, **`getUserMedia` solo funciona en contextos seguros**: la URL
 debe ser `https://…` o `http://localhost` (una IP de la LAN por `http` no vale).
 
-Los permisos de cámara de macOS se conceden **a una app empaquetada**, no a un
+**Linux**: no hay diálogo de permisos del sistema como en macOS (el acceso a la
+cámara depende de los permisos del dispositivo: tu usuario debe estar en el
+grupo `video`), así que funciona igual desde `cargo tauri dev` que empaquetada;
+comprueba la cámara con `v4l2-ctl --list-devices`.
+
+**macOS**: los permisos de cámara se conceden **a una app empaquetada**, no a un
 binario suelto lanzado desde el terminal. Para probar la cámara de verdad
 empaqueta y abre la `.app`:
 

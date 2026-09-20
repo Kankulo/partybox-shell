@@ -149,16 +149,28 @@ fn toggle_kiosk(app: &AppHandle) {
     println!("kiosk mode: {}", if on { "on" } else { "off" });
 }
 
+// DevTools: the page's right-click menu is disabled (it's a kiosk), so "Inspect
+// Element" isn't there; this opens them instead. Cmd+Alt+I is the macOS
+// convention, F12 the Linux/Windows one.
+#[cfg(target_os = "macos")]
+const DEVTOOLS_ACCELERATOR: &str = "Cmd+Alt+I";
+#[cfg(not(target_os = "macos"))]
+const DEVTOOLS_ACCELERATOR: &str = "F12";
+
 /// Debug builds only: a native menu whose accelerators work while the page has
 /// focus (the remote site is given no way to talk to the app), and keep working
-/// when the menu bar itself is hidden by kiosk mode.
+/// when the menu bar itself is hidden by kiosk mode. CmdOrCtrl = Cmd on macOS,
+/// Ctrl on Linux and Windows.
 fn build_dev_menu(app: &AppHandle) -> tauri::Result<()> {
     let toggle = MenuItemBuilder::with_id("toggle-kiosk", "Alternar modo kiosco").accelerator("CmdOrCtrl+Shift+K").build(app)?;
     let reload = MenuItemBuilder::with_id("reload", "Recargar").accelerator("CmdOrCtrl+R").build(app)?;
     let home = MenuItemBuilder::with_id("home", "Volver al inicio").accelerator("CmdOrCtrl+Shift+H").build(app)?;
+    let devtools = MenuItemBuilder::with_id("devtools", "Herramientas de desarrollo").accelerator(DEVTOOLS_ACCELERATOR).build(app)?;
+    // Our own Quit (not the predefined one) so Ctrl+Q exists on Linux/Windows too.
+    let quit = MenuItemBuilder::with_id("quit", "Salir").accelerator("CmdOrCtrl+Q").build(app)?;
 
-    let app_menu = SubmenuBuilder::new(app, "PartyBox Shell").about(None).separator().quit().build()?;
-    let kiosk_menu = SubmenuBuilder::new(app, "Kiosco").item(&toggle).item(&reload).item(&home).build()?;
+    let app_menu = SubmenuBuilder::new(app, "PartyBox Shell").about(None).separator().item(&quit).build()?;
+    let kiosk_menu = SubmenuBuilder::new(app, "Kiosco").item(&toggle).item(&reload).item(&home).separator().item(&devtools).build()?;
     let edit_menu = SubmenuBuilder::new(app, "Edición").cut().copy().paste().select_all().build()?;
     app.set_menu(MenuBuilder::new(app).item(&app_menu).item(&kiosk_menu).item(&edit_menu).build()?)?;
     Ok(())
@@ -167,6 +179,12 @@ fn build_dev_menu(app: &AppHandle) -> tauri::Result<()> {
 fn on_dev_menu(app: &AppHandle, id: &str) {
     match id {
         "toggle-kiosk" => toggle_kiosk(app),
+        "quit" => app.exit(0),
+        "devtools" => {
+            if let Some(w) = app.get_webview_window(WINDOW) {
+                w.open_devtools();
+            }
+        }
         "reload" => {
             if let Some(w) = app.get_webview_window(WINDOW) {
                 let _ = w.eval("location.reload()");
