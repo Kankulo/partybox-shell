@@ -36,6 +36,15 @@ const KIOSK_SCRIPT: &str = r#"
   window.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
 "#;
 
+/// With `--dev-tools`: sets the flag the PWA's own `config/devTools.js`
+/// checks (alongside `import.meta.env.DEV` and `VITE_DEV_TOOLS`), so its dev
+/// panels (local switcher, camera settings...) show up without a separate
+/// build or touching the deployed site at all — a choice made fresh each
+/// time the shell starts, not baked into any deploy. Runs before every page
+/// load (the local splash included), so it's already set by the time the
+/// real site's own scripts run, even across the splash -> target navigation.
+const DEV_TOOLS_SCRIPT: &str = "window.__PARTYBOX_DEV_TOOLS__ = true;";
+
 const USAGE: &str = "\
 partybox-shell [options]        (each option also works as --name=value)
 
@@ -49,6 +58,9 @@ partybox-shell [options]        (each option also works as --name=value)
   --kiosk              start in kiosk mode (fullscreen, no bars, no way out with the mouse)
   --windowed           start as a normal window
   --reset-window       forget the remembered screen and window position
+  --dev-tools          turn on the PWA's own dev panels (local switcher, camera settings...)
+                       even on a deployed build, without touching its own env vars or
+                       redeploying — see src/config/devTools.js on the PartyBox side
   -h, --help           this text
 
 --rotate and --cursor override the same parameters if the URL already has them.
@@ -79,6 +91,7 @@ struct Args {
     kiosk: Option<bool>,
     hide_cursor: bool,
     reset_window: bool,
+    dev_tools: bool,
 }
 
 /// What the command line asked for; `Help` means "print USAGE and stop".
@@ -101,6 +114,7 @@ fn parse_args(argv: impl IntoIterator<Item = String>, env_url: Option<String>) -
     let mut cursor = None;
     let mut rotate = None;
     let mut reset_window = false;
+    let mut dev_tools = false;
 
     let mut argv = argv.into_iter();
     while let Some(arg) = argv.next() {
@@ -145,6 +159,10 @@ fn parse_args(argv: impl IntoIterator<Item = String>, env_url: Option<String>) -
                 no_value(&key, &inline)?;
                 reset_window = true;
             }
+            "--dev-tools" => {
+                no_value(&key, &inline)?;
+                dev_tools = true;
+            }
             other => return Err(format!("unknown argument: {other} (see --help)")),
         }
     }
@@ -159,6 +177,7 @@ fn parse_args(argv: impl IntoIterator<Item = String>, env_url: Option<String>) -
         kiosk,
         hide_cursor: cursor == Some(Cursor::Hide),
         reset_window,
+        dev_tools,
     }))
 }
 
@@ -494,10 +513,18 @@ fn main() {
 
             let target = args.url.clone();
             let dev_server = if cfg!(debug_assertions) { app.config().build.dev_url.clone() } else { None };
+            // One combined script rather than two `.initialization_script()`
+            // calls, to not depend on whether Tauri runs several of those in
+            // the order added.
+            let init_script = if args.dev_tools {
+                format!("{DEV_TOOLS_SCRIPT}\n{KIOSK_SCRIPT}")
+            } else {
+                KIOSK_SCRIPT.to_string()
+            };
             let window = WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::App("index.html".into()))
                 .title("PartyBox")
                 .inner_size(1200.0, 800.0)
-                .initialization_script(KIOSK_SCRIPT)
+                .initialization_script(&init_script)
                 .on_navigation(move |url| {
                     let ok = allowed(&target, dev_server.as_ref(), url);
                     if !ok {
@@ -611,12 +638,13 @@ mod tests {
     fn options_take_both_forms_and_default_to_the_kiosk_site() {
         let a = parse(&[]).unwrap();
         assert_eq!(a.url.as_str(), "http://localhost:5173/");
-        assert_eq!((a.kiosk, a.hide_cursor, a.reset_window), (None, false, false));
+        assert_eq!((a.kiosk, a.hide_cursor, a.reset_window, a.dev_tools), (None, false, false, false));
         assert_eq!(parse(&["--url=localhost:8080"]).unwrap().url.as_str(), "http://localhost:8080/");
         assert_eq!(parse(&["--url", "https://k.example.com"]).unwrap().url.as_str(), "https://k.example.com/");
         assert_eq!(parse(&["--kiosk"]).unwrap().kiosk, Some(true));
         assert_eq!(parse(&["--windowed"]).unwrap().kiosk, Some(false));
         assert!(parse(&["--reset-window"]).unwrap().reset_window);
+        assert!(parse(&["--dev-tools"]).unwrap().dev_tools);
     }
 
     #[test]
@@ -650,6 +678,7 @@ mod tests {
             &["--rotate"],
             &["--cursor=maybe"],
             &["--windowed=yes"],
+            &["--dev-tools=yes"],
             &["--wat"],
             &["kiosk"],
             &["--url=http://"],
