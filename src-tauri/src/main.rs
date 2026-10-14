@@ -346,6 +346,41 @@ fn allowed(target: &Url, dev_server: Option<&Url>, url: &Url) -> bool {
     is_local_app || same_origin(target, url) || dev_server.is_some_and(|d| same_origin(d, url))
 }
 
+/// Linux (WebKitGTK): `getUserMedia` does nothing by default — wry leaves
+/// `enable-media-stream` off and never answers the permission request, so
+/// WebKit silently denies the camera. Switch it on, and grant it only to
+/// the configured site (never to the splash page or anything else that
+/// could end up in the webview). Not yet run on a real Linux machine.
+#[cfg(target_os = "linux")]
+fn allow_camera(window: &WebviewWindow, target: Url) {
+    use webkit2gtk::{PermissionRequestExt, SettingsExt, UserMediaPermissionRequest, WebViewExt};
+    use webkit2gtk::glib::prelude::*;
+
+    let result = window.with_webview(move |webview| {
+        let view = webview.inner();
+        if let Some(settings) = WebViewExt::settings(&view) {
+            settings.set_enable_media_stream(true);
+        }
+        let _ = view.connect_permission_request(move |view, request| {
+            if !request.is::<UserMediaPermissionRequest>() {
+                return false; // anything else: WebKit's default (deny)
+            }
+            let from_target = WebViewExt::uri(view)
+                .and_then(|uri| Url::parse(uri.as_str()).ok())
+                .is_some_and(|page| same_origin(&target, &page));
+            if from_target {
+                request.allow();
+            } else {
+                request.deny();
+            }
+            true
+        });
+    });
+    if let Err(err) = result {
+        eprintln!("camera: could not set up the webview: {err}");
+    }
+}
+
 // macOS: "simple" fullscreen is instant (no new Space, no animation) and hides
 // the Dock and the menu bar, which native fullscreen leaves reachable at the
 // screen edges. Elsewhere, plain fullscreen already covers everything.
@@ -485,6 +520,14 @@ fn selftest(app: AppHandle) {
 }
 
 fn main() {
+    // WebKitGTK's camera support is only known to work through X11 (the
+    // documented setup uses xrandr/xinput too). Under a Wayland session this
+    // runs through XWayland; set GDK_BACKEND yourself to override.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("GDK_BACKEND").is_none() {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
+
     let args = match parse_args(std::env::args().skip(1), std::env::var("PARTYBOX_URL").ok()) {
         Ok(Parsed::Run(args)) => args,
         Ok(Parsed::Help) => {
@@ -533,6 +576,9 @@ fn main() {
                     ok
                 })
                 .build()?;
+
+            #[cfg(target_os = "linux")]
+            allow_camera(&window, args.url.clone());
 
             if cfg!(debug_assertions) {
                 build_dev_menu(app.handle())?;

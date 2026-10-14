@@ -143,6 +143,28 @@ reabrir.)
 cd src-tauri && cargo tauri build
 ```
 
+### En el mini-PC (Debian 13 / Ubuntu reciente)
+
+No se puede cross-compilar desde macOS (hace falta WebKitGTK de Linux), así que
+se compila en el propio mini-PC con tres scripts de la raíz del repo:
+
+| Script | Qué hace |
+|---|---|
+| `./setup-debian.sh` | Una vez: instala paquetes del sistema, Rust y el Tauri CLI, te añade al grupo `video` y llama a `build-linux.sh`. |
+| `./build-linux.sh` | Compila (release + `.deb`). Es lo único que hace falta repetir tras un `git pull`. |
+| `./run-kiosk.sh` | Arranca el shell en modo kiosko. `--windowed` para probar en ventana; `PARTYBOX_URL`, `PARTYBOX_ROTATE` (por defecto `90`) y `PARTYBOX_CURSOR` lo ajustan. |
+
+```bash
+git clone <url-del-repo> && cd partybox-shell
+./setup-debian.sh        # reinicia la sesión si te añadió al grupo video
+v4l2-ctl --list-devices  # ¿ve la Arducam?
+./run-kiosk.sh --windowed
+```
+
+`run-kiosk.sh` necesita una sesión gráfica abierta, y el kiosko (la PWA de
+`PartyBox`) tiene que estar sirviéndose en la URL; mientras no responda, el shell
+muestra "Conectando…" y entra solo.
+
 Genera la app (`.app`/`.dmg` en macOS, `.deb`/`.AppImage`/`.rpm` en Linux…) en
 `src-tauri/target/release/bundle/`. En Linux se puede ejecutar el binario
 directamente (`src-tauri/target/release/partybox-shell`) o instalar el `.deb`. La versión de producción **no tiene menú ni
@@ -182,6 +204,17 @@ debe ser `https://…` o `http://localhost` (una IP de la LAN por `http` no vale
 cámara depende de los permisos del dispositivo: tu usuario debe estar en el
 grupo `video`), así que funciona igual desde `cargo tauri dev` que empaquetada;
 comprueba la cámara con `v4l2-ctl --list-devices`.
+
+> **Sin probar en un Linux real.** WebKitGTK no da la cámara por defecto: `wry`
+> deja `enable-media-stream` apagado y nunca contesta a la petición de permiso,
+> así que WebKit la deniega en silencio. `allow_camera` (`src-tauri/src/main.rs`,
+> solo Linux) activa el ajuste y concede el permiso **únicamente al origen del
+> kiosko**; además el shell fuerza `GDK_BACKEND=x11` si no lo has definido (la
+> cámara en WebKitGTK solo se ha visto funcionar sobre X11). Se escribió contra
+> las firmas reales de `webkit2gtk 2.0.2`, pero **no se ha compilado ni
+> ejecutado en Linux**: si falla al compilar o `getUserMedia` sigue denegado,
+> empieza por ahí. En el sistema también hace falta un GStreamer/PipeWire
+> reciente (qué paquetes concretos de Debian: pendiente de comprobar).
 
 **macOS**: los permisos de cámara se conceden **a una app empaquetada**, no a un
 binario suelto lanzado desde el terminal. Para probar la cámara de verdad
