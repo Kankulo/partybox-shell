@@ -61,6 +61,9 @@ partybox-shell [options]        (each option also works as --name=value)
   --dev-tools          turn on the PWA's own dev panels (local switcher, camera settings...)
                        even on a deployed build, without touching its own env vars or
                        redeploying — see src/config/devTools.js on the PartyBox side
+  --inspector          open the web inspector (console, network...) at startup. Only in
+                       debug builds, or release ones made with ./build-linux.sh --devtools.
+                       Best with --windowed: in kiosk mode the shell stays on top of it
   -h, --help           this text
 
 --rotate and --cursor override the same parameters if the URL already has them.
@@ -92,6 +95,8 @@ struct Args {
     hide_cursor: bool,
     reset_window: bool,
     dev_tools: bool,
+    /// `--inspector`: open the web inspector at startup.
+    inspector: bool,
 }
 
 /// What the command line asked for; `Help` means "print USAGE and stop".
@@ -115,6 +120,7 @@ fn parse_args(argv: impl IntoIterator<Item = String>, env_url: Option<String>) -
     let mut rotate = None;
     let mut reset_window = false;
     let mut dev_tools = false;
+    let mut inspector = false;
 
     let mut argv = argv.into_iter();
     while let Some(arg) = argv.next() {
@@ -163,6 +169,10 @@ fn parse_args(argv: impl IntoIterator<Item = String>, env_url: Option<String>) -
                 no_value(&key, &inline)?;
                 dev_tools = true;
             }
+            "--inspector" => {
+                no_value(&key, &inline)?;
+                inspector = true;
+            }
             other => return Err(format!("unknown argument: {other} (see --help)")),
         }
     }
@@ -178,6 +188,7 @@ fn parse_args(argv: impl IntoIterator<Item = String>, env_url: Option<String>) -
         hide_cursor: cursor == Some(Cursor::Hide),
         reset_window,
         dev_tools,
+        inspector,
     }))
 }
 
@@ -456,9 +467,9 @@ fn on_dev_menu(app: &AppHandle, id: &str) {
         "toggle-kiosk" => toggle_kiosk(app),
         "quit" => app.exit(0),
         "devtools" => {
-            // open_devtools only exists in debug builds (or with Tauri's
-            // "devtools" feature); release builds have no dev menu anyway.
-            #[cfg(debug_assertions)]
+            // open_devtools only exists in debug builds or with the "devtools"
+            // feature (./build-linux.sh --devtools).
+            #[cfg(any(debug_assertions, feature = "devtools"))]
             if let Some(w) = app.get_webview_window(WINDOW) {
                 w.open_devtools();
             }
@@ -625,6 +636,13 @@ fn main() {
             apply_kiosk(&window, kiosk, args.hide_cursor);
             println!("kiosk mode: {}", if kiosk { "on" } else { "off" });
 
+            if args.inspector {
+                #[cfg(any(debug_assertions, feature = "devtools"))]
+                window.open_devtools();
+                #[cfg(not(any(debug_assertions, feature = "devtools")))]
+                eprintln!("--inspector: this build has no web inspector; rebuild with ./build-linux.sh --devtools");
+            }
+
             #[cfg(debug_assertions)]
             if std::env::var("PARTYBOX_SELFTEST").is_ok() {
                 selftest(app.handle().clone());
@@ -694,6 +712,11 @@ mod tests {
         assert_eq!(parse(&["--windowed"]).unwrap().kiosk, Some(false));
         assert!(parse(&["--reset-window"]).unwrap().reset_window);
         assert!(parse(&["--dev-tools"]).unwrap().dev_tools);
+        // --inspector (web inspector) is not --dev-tools (the PWA's own panels)
+        assert!(!parse(&["--dev-tools"]).unwrap().inspector);
+        assert!(parse(&["--inspector"]).unwrap().inspector);
+        assert!(!parse(&["--inspector"]).unwrap().dev_tools);
+        assert!(parse(&["--inspector=1"]).is_err());
     }
 
     #[test]

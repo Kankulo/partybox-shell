@@ -15,6 +15,12 @@ serde_json = "1"
 # Linux only: the webcam needs WebKitGTK's media stream switched on and its
 # permission request answered by us (see allow_camera in main.rs). Same
 # version Tauri/wry already pull in, so no second copy gets built.
+[features]
+# Web inspector in a release build (debug builds always have it). Not in the
+# default build: ./build-linux.sh --devtools turns it on, and `--inspector`
+# opens it at startup.
+devtools = ["tauri/devtools"]
+
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = { version = "=2.0.2", features = ["v2_4"] }
 

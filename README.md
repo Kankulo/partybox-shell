@@ -161,6 +161,19 @@ v4l2-ctl --list-devices  # ¿ve la Arducam?
 ./run-kiosk.sh --windowed
 ```
 
+**Depurar con el inspector web** (consola, red, elementos): una compilación de
+producción no lo trae. Para tenerlo:
+
+```bash
+./build-linux.sh --devtools        # compila con el feature `devtools` de Tauri
+./run-kiosk.sh --windowed --inspector
+```
+
+`--inspector` abre el inspector al arrancar; en modo kiosko el shell se queda por
+encima, así que úsalo con `--windowed`. No confundir con `--dev-tools`, que activa
+los paneles de desarrollo de la propia PWA (otro mecanismo). Una compilación
+normal avisa en la consola si le pasas `--inspector`.
+
 `run-kiosk.sh` necesita una sesión gráfica abierta, y el kiosko (la PWA de
 `PartyBox`) tiene que estar sirviéndose en la URL; mientras no responda, el shell
 muestra "Conectando…" y entra solo.

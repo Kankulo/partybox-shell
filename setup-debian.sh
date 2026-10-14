@@ -2,7 +2,8 @@
 # Prepara un Debian 13 (Trixie) o Ubuntu reciente y compila partybox-shell.
 # Se ejecuta EN el mini-PC, dentro del repo clonado:
 #
-#   ./setup-debian.sh
+#   ./setup-debian.sh              (o ./setup-debian.sh --devtools para compilar con
+#                                   el inspector web; ver build-linux.sh)
 #
 # Instala los paquetes, Rust y el Tauri CLI, y llama a ./build-linux.sh.
 # Idempotente: se puede repetir. Para recompilar después de un `git pull`
@@ -61,7 +62,7 @@ if ! cargo tauri --version >/dev/null 2>&1; then
   cargo install tauri-cli --version "^2" --locked
 fi
 
-"$root/build-linux.sh"
+"$root/build-linux.sh" "$@"
 
 echo
 echo "Siguiente paso:  v4l2-ctl --list-devices   y luego   ./run-kiosk.sh --windowed"

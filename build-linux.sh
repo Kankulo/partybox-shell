@@ -2,7 +2,9 @@
 # Compila partybox-shell en Linux (release + paquete .deb). Necesita lo que
 # instala ./setup-debian.sh (paquetes del sistema, Rust y Tauri CLI).
 #
-#   ./build-linux.sh
+#   ./build-linux.sh              compilación normal (sin inspector web)
+#   ./build-linux.sh --devtools   con las herramientas de desarrollo del navegador
+#                                 (inspector: consola, red...); para depurar
 #
 # Deja el binario en src-tauri/target/release/partybox-shell y el instalable en
 # src-tauri/target/release/bundle/deb/. La primera vez tarda varios minutos.
@@ -26,8 +28,23 @@ fi
 command -v cargo >/dev/null || { echo "No hay Rust: ejecuta ./setup-debian.sh primero." >&2; exit 1; }
 cargo tauri --version >/dev/null 2>&1 || { echo "Falta el Tauri CLI: ejecuta ./setup-debian.sh primero." >&2; exit 1; }
 
+features=()
+for arg in "$@"; do
+  case "$arg" in
+    --devtools)
+      features=(--features devtools)
+      echo "==> Con inspector web (arranca con ./run-kiosk.sh --windowed --inspector)"
+      ;;
+    *)
+      echo "Opción desconocida: $arg" >&2
+      echo "Uso: ./build-linux.sh [--devtools]" >&2
+      exit 1
+      ;;
+  esac
+done
+
 # rust-toolchain.toml fija Rust 1.90 solo para este proyecto; rustup lo instala solo.
-cargo tauri build --bundles deb
+cargo tauri build --bundles deb ${features[@]+"${features[@]}"}
 
 echo
 echo "Binario:     $(pwd)/target/release/partybox-shell"
