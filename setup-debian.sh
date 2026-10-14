@@ -37,12 +37,15 @@ $SUDO apt-get update
 # Cámara: WebKitGTK captura vía GStreamer y PipeWire; v4l-utils es para
 # comprobar la cámara con v4l2-ctl. La lista de GStreamer/PipeWire es una
 # apuesta razonable, no está confirmado qué es lo mínimo.
+# Pantalla: X11 + Openbox mínimos para un Debian sin escritorio (los usa
+# ./run-kiosk.sh vía startx); si ya tienes escritorio no estorban.
 $SUDO apt-get install -y \
   build-essential curl wget file pkg-config \
   libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
   gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-pipewire \
   pipewire pipewire-pulse wireplumber \
-  v4l-utils
+  v4l-utils \
+  xserver-xorg xinit openbox x11-xserver-utils xinput
 
 # Acceso a /dev/video*: surte efecto al volver a iniciar sesión.
 if [ "$(id -u)" -ne 0 ] && ! id -nG "$USER" | grep -qw video; then

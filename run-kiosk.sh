@@ -10,10 +10,11 @@
 #   PARTYBOX_ROTATE  0 | 90 | 180 | 270          (por defecto 90, pantalla en vertical)
 #   PARTYBOX_CURSOR  hide | show                 (por defecto hide)
 #
-# Lo que reciba por argumentos se pasa tal cual al shell (ver README). Necesita
-# una sesión gráfica abierta: el shell solo es una ventana; el kiosko (la PWA)
-# tiene que estar sirviéndose en esa URL. Mientras no responda, el shell
-# muestra "Conectando…" y entra solo cuando lo haga.
+# Lo que reciba por argumentos se pasa tal cual al shell (ver README). Si no hay
+# sesión gráfica (consola de texto), levanta una mínima con X11 + Openbox
+# (./x11-session.sh). El shell solo es una ventana: el kiosko (la PWA) tiene
+# que estar sirviéndose en esa URL. Mientras no responda, el shell muestra
+# "Conectando…" y entra solo cuando lo haga.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 
@@ -31,7 +32,13 @@ else
 fi
 
 if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
-  echo "No hay sesión gráfica (DISPLAY vacío). Ejecútalo desde el escritorio del mini-PC." >&2
+  # Sin escritorio (consola de texto): levantar X11 mínimo con ./x11-session.sh,
+  # que vuelve a llamar a este script ya con DISPLAY puesto.
+  if command -v startx >/dev/null; then
+    echo "No hay sesión gráfica: arranco una mínima (X11 + Openbox)..." >&2
+    exec startx "$here/x11-session.sh" "$@" -- -nolisten tcp
+  fi
+  echo "No hay sesión gráfica ni startx. Ejecuta ./setup-debian.sh (instala X11) o abre el escritorio." >&2
   exit 1
 fi
 

@@ -174,7 +174,15 @@ encima, así que úsalo con `--windowed`. No confundir con `--dev-tools`, que ac
 los paneles de desarrollo de la propia PWA (otro mecanismo). Una compilación
 normal avisa en la consola si le pasas `--inspector`.
 
-`run-kiosk.sh` necesita una sesión gráfica abierta, y el kiosko (la PWA de
+**Sin escritorio** (Debian mínimo, consola de texto): `run-kiosk.sh` detecta que no
+hay `DISPLAY` y levanta una sesión mínima con `startx` + Openbox
+(`x11-session.sh`, que desactiva el apagado de pantalla). Hacen falta
+`xserver-xorg xinit openbox x11-xserver-utils xinput`, que ya instala
+`setup-debian.sh`. Hay que lanzarlo desde la consola local (tty) con el usuario
+que inició sesión allí, no por SSH ni con `su`. Al cerrar el shell, la sesión X
+termina y vuelves a la consola. Sin probar en un Linux real.
+
+`run-kiosk.sh` necesita una sesión gráfica abierta (o la mínima de arriba), y el kiosko (la PWA de
 `PartyBox`) tiene que estar sirviéndose en la URL; mientras no responda, el shell
 muestra "Conectando…" y entra solo.
 
