@@ -182,9 +182,13 @@ hay `DISPLAY` y levanta una sesión mínima con `startx` + Openbox
 que inició sesión allí, no por SSH ni con `su`. Al cerrar el shell, la sesión X
 termina y vuelves a la consola. Sin probar en un Linux real.
 
-`run-kiosk.sh` necesita una sesión gráfica abierta (o la mínima de arriba), y el kiosko (la PWA de
-`PartyBox`) tiene que estar sirviéndose en la URL; mientras no responda, el shell
-muestra "Conectando…" y entra solo.
+**Qué muestra:** `run-kiosk.sh` abre por defecto la PWA desplegada,
+`https://partybox-kiosk.vercel.app/` (el mini-PC necesita internet). Para otro
+sitio, por ejemplo un kiosko local: `PARTYBOX_URL=http://localhost:5173 ./run-kiosk.sh`.
+Solo cambia el valor por defecto de este script; el binario sigue mostrando
+`http://localhost:5173` si lo ejecutas sin `--url` (desarrollo). Mientras la URL no
+responda, el shell muestra "Conectando…" y entra solo. Un sitio remoto necesita
+red: el modo offline de la PWA dentro de WebKitGTK no está garantizado.
 
 Genera la app (`.app`/`.dmg` en macOS, `.deb`/`.AppImage`/`.rpm` en Linux…) en
 `src-tauri/target/release/bundle/`. En Linux se puede ejecutar el binario

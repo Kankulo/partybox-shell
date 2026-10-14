@@ -6,19 +6,20 @@
 #   PARTYBOX_URL=http://otro:8080 ./run-kiosk.sh
 #
 # Variables (todas opcionales):
-#   PARTYBOX_URL     página a mostrar            (por defecto http://localhost:5173)
+#   PARTYBOX_URL     página a mostrar            (por defecto https://partybox-kiosk.vercel.app/)
+#                    p. ej. PARTYBOX_URL=http://localhost:5173 para un kiosko local
 #   PARTYBOX_ROTATE  0 | 90 | 180 | 270          (por defecto 90, pantalla en vertical)
 #   PARTYBOX_CURSOR  hide | show                 (por defecto hide)
 #
 # Lo que reciba por argumentos se pasa tal cual al shell (ver README). Si no hay
 # sesión gráfica (consola de texto), levanta una mínima con X11 + Openbox
-# (./x11-session.sh). El shell solo es una ventana: el kiosko (la PWA) tiene
-# que estar sirviéndose en esa URL. Mientras no responda, el shell muestra
-# "Conectando…" y entra solo cuando lo haga.
+# (./x11-session.sh). El shell solo es una ventana que muestra esa URL (la PWA
+# del kiosko desplegada en Vercel, así que el mini-PC necesita internet). Si no
+# responde, muestra "Conectando…" y entra solo cuando lo haga.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 
-url="${PARTYBOX_URL:-http://localhost:5173}"
+url="${PARTYBOX_URL:-https://partybox-kiosk.vercel.app/}"
 rotate="${PARTYBOX_ROTATE:-90}"
 cursor="${PARTYBOX_CURSOR:-hide}"
 
