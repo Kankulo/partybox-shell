@@ -456,6 +456,9 @@ fn on_dev_menu(app: &AppHandle, id: &str) {
         "toggle-kiosk" => toggle_kiosk(app),
         "quit" => app.exit(0),
         "devtools" => {
+            // open_devtools only exists in debug builds (or with Tauri's
+            // "devtools" feature); release builds have no dev menu anyway.
+            #[cfg(debug_assertions)]
             if let Some(w) = app.get_webview_window(WINDOW) {
                 w.open_devtools();
             }
