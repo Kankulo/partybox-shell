@@ -23,7 +23,7 @@ else
   cat >&2 <<EOF
 No hay sudo y no eres root. Instálalo una vez (te pedirá la contraseña de root):
 
-  su -c 'apt-get install -y sudo && usermod -aG sudo $USER'
+  su -l -c 'apt-get install -y sudo && usermod -aG sudo $USER'
 
 Cierra la sesión, vuelve a entrar y repite ./setup-debian.sh.
 EOF
